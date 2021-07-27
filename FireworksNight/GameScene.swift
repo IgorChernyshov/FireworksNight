@@ -23,6 +23,13 @@ final class GameScene: SKScene {
 
 	// MARK: - Properties
 	private var gameTimer: Timer?
+	private var numberOfLaunches = 0 {
+		didSet {
+			if numberOfLaunches == 10 {
+				gameOver()
+			}
+		}
+	}
 
 	private let leftEdge = -22
 	private let bottomEdge = -22
@@ -52,38 +59,6 @@ final class GameScene: SKScene {
 	}
 
 	// MARK: - Game Logic
-	private func createFirework(xMovement: CGFloat, x: Int, y: Int) {
-		let node = SKNode()
-		node.position = CGPoint(x: x, y: y)
-
-		let firework = SKSpriteNode(imageNamed: "rocket")
-		firework.colorBlendFactor = 1
-		firework.name = "firework"
-		node.addChild(firework)
-
-		switch Int.random(in: 0...2) {
-		case 0: firework.color = .cyan
-		case 1: firework.color = .green
-		case 2: firework.color = .red
-		default: break
-		}
-
-		let path = UIBezierPath()
-		path.move(to: .zero)
-		path.addLine(to: CGPoint(x: xMovement, y: 1000))
-
-		let move = SKAction.follow(path.cgPath, asOffset: true, orientToPath: true, speed: 200)
-		node.run(move)
-
-		if let emitter = SKEmitterNode(fileNamed: "fuse") {
-			emitter.position = CGPoint(x: 0, y: -22)
-			node.addChild(emitter)
-		}
-
-		fireworks.append(node)
-		addChild(node)
-	}
-
 	@objc private func launchFireworks() {
 		let movementAmount: CGFloat = 1800
 
@@ -119,6 +94,40 @@ final class GameScene: SKScene {
 		default:
 			break
 		}
+
+		numberOfLaunches += 1
+	}
+
+	private func createFirework(xMovement: CGFloat, x: Int, y: Int) {
+		let node = SKNode()
+		node.position = CGPoint(x: x, y: y)
+
+		let firework = SKSpriteNode(imageNamed: "rocket")
+		firework.colorBlendFactor = 1
+		firework.name = "firework"
+		node.addChild(firework)
+
+		switch Int.random(in: 0...2) {
+		case 0: firework.color = .cyan
+		case 1: firework.color = .green
+		case 2: firework.color = .red
+		default: break
+		}
+
+		let path = UIBezierPath()
+		path.move(to: .zero)
+		path.addLine(to: CGPoint(x: xMovement, y: 1000))
+
+		let move = SKAction.follow(path.cgPath, asOffset: true, orientToPath: true, speed: 200)
+		node.run(move)
+
+		if let emitter = SKEmitterNode(fileNamed: "fuse") {
+			emitter.position = CGPoint(x: 0, y: -22)
+			node.addChild(emitter)
+		}
+
+		fireworks.append(node)
+		addChild(node)
 	}
 
 	override func update(_ currentTime: TimeInterval) {
@@ -128,6 +137,51 @@ final class GameScene: SKScene {
 				firework.removeFromParent()
 			}
 		}
+	}
+
+	private func explode(firework: SKNode) {
+		if let emitter = SKEmitterNode(fileNamed: "explode") {
+			emitter.position = firework.position
+			addChild(emitter)
+			emitter.run(SKAction.wait(forDuration: 1)) {
+				emitter.removeFromParent()
+			}
+		}
+
+		firework.removeFromParent()
+	}
+
+	func explodeFireworks() {
+		var numExploded = 0
+
+		for (index, fireworkContainer) in fireworks.enumerated().reversed() {
+			guard let firework = fireworkContainer.children.first as? SKSpriteNode else { continue }
+
+			if firework.name == "selected" {
+				explode(firework: fireworkContainer)
+				fireworks.remove(at: index)
+				numExploded += 1
+			}
+		}
+
+		switch numExploded {
+		case 0:
+			break
+		case 1:
+			score += 200
+		case 2:
+			score += 500
+		case 3:
+			score += 1500
+		case 4:
+			score += 2500
+		default:
+			score += 4000
+		}
+	}
+
+	private func gameOver() {
+		gameTimer?.invalidate()
 	}
 
 	// MARK: - Touches Handling
